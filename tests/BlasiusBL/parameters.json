@@ -2,7 +2,7 @@
     "time": {
         "mtstep": 10000,
         "dt": 2e-06,
-        "itinfo": 10,
+        "itinfo": 100,
         "targetcflmax": 1.0,
         "tstat": 0.004,
         "tend": 0.006
@@ -34,5 +34,13 @@
         "lesmodel": {
             "model": "none"
         }
-    }
+    },
+    "statistics": [
+        "P_AVG",
+        "U_AVG", "V_AVG", "W_AVG",
+        "UU_AVG", "VV_AVG", "WW_AVG",
+        "UV_AVG", "VW_AVG", "UW_AVG"
+        // "UP_AVG", "VP_AVG", "WP_AVG",
+        // "DISSIP_AVG"
+    ]
 }
