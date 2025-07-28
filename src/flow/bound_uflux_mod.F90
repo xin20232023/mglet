@@ -24,6 +24,11 @@ MODULE bound_uflux_mod
 CONTAINS
 
     ! --------------------------------------------------------------------
+    ! bfront
+    !   Handles flux prolongation at the 'front' (or 'back') boundary 
+    !   for x-direction faces. 
+    !   Distributes the incoming buffer flux onto the corresponding 
+    !   fine-grid faces using area-based weights.
     ! --------------------------------------------------------------------
     SUBROUTINE bfront(igrid, iface, ibocd, ctyp, f1, f2, f3, f4, timeph)
         INTEGER(intk), INTENT(in) :: igrid, iface, ibocd
@@ -41,9 +46,9 @@ CONTAINS
         REAL(realk), POINTER, CONTIGUOUS :: bp(:, :, :)
         REAL(realk), POINTER, CONTIGUOUS :: quo_x_buf(:, :, :)
 
+        ! Get pointers to field arrays
         CALL f1%get_ptr(quo_x, igrid)
         CALL f1%buffers%get_buffer(quo_x_buf, igrid, iface)
-
         CALL get_fieldptr(bp, "BP", igrid)
         CALL get_mgdims(kk, jj, ii, igrid)
 
@@ -67,25 +72,28 @@ CONTAINS
             CALL errr(__FILE__, __LINE__)
         END SELECT
 
-    
+        ! Loop over the receiver cells at the interface
         DO j = 3, jj-3, 2
             DO k = 3, kk-2, 2
+                ! Read coarse-grid total flux from buffer, with orientation
                 qtot = dir*quo_x_buf(k, j, 1)
 
                 area1 = 0.5_realk * bp(k,   j,   i3)
                 area2 = 0.5_realk * bp(k+1, j,   i3)
-                area3 =            bp(k,   j+1, i3)
-                area4 =            bp(k+1, j+1, i3)
+                area3 =             bp(k,   j+1, i3)
+                area4 =             bp(k+1, j+1, i3)
                 area5 = 0.5_realk * bp(k,   j+2, i3)
                 area6 = 0.5_realk * bp(k+1, j+2, i3)
 
                 arecvtot = area1 + area2 + area3 + area4 + area5 + area6
                 IF (arecvtot == 0.0_realk) CYCLE
-    
+
+                ! Compute weights for distributing flux proportionally
                 w1 = divide0(area1, arecvtot); w2 = divide0(area2, arecvtot)
                 w3 = divide0(area3, arecvtot); w4 = divide0(area4, arecvtot)
                 w5 = divide0(area5, arecvtot); w6 = divide0(area6, arecvtot)
 
+                ! Deposit distributed flux to fine-grid faces
                 quo_x(k  , j  , istag2) = quo_x(k  , j  , istag2) + w1*qtot
                 quo_x(k+1, j  , istag2) = quo_x(k+1, j  , istag2) + w2*qtot
                 quo_x(k  , j+1, istag2) = quo_x(k  , j+1, istag2) + w3*qtot
@@ -98,7 +106,11 @@ CONTAINS
     END SUBROUTINE bfront
 
 
-
+    ! --------------------------------------------------------------------
+    ! bright
+    !   Handles flux prolongation at the 'right' (or 'left') boundary 
+    !   for y-direction faces.
+    ! --------------------------------------------------------------------
     SUBROUTINE bright(igrid, iface, ibocd, ctyp, f1, f2, f3, f4, timeph)
         INTEGER(intk), INTENT(in) :: igrid, iface, ibocd
         CHARACTER(len=*), INTENT(in) :: ctyp
@@ -173,7 +185,13 @@ CONTAINS
     END SUBROUTINE bright
 
 
-
+    ! --------------------------------------------------------------------
+    ! bbottom
+    !   Handles flux prolongation at the 'bottom' (or 'top') boundary 
+    !   for z-direction faces.
+    !   Similar logic as bfront/bright but for z-faces.
+    ! --------------------------------------------------------------------
+    
     SUBROUTINE bbottom(igrid, iface, ibocd, ctyp, f1, f2, f3, f4, timeph)
         INTEGER(intk), INTENT(in) :: igrid, iface, ibocd
         CHARACTER(len=*), INTENT(in) :: ctyp
