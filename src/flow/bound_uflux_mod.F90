@@ -65,8 +65,8 @@ CONTAINS
             i2 = ii - 1
             i3     = ii - 2
             i4 = ii - 3
-            istag1 = ii - 1
-            istag2 = ii - 1
+            
+            istag2 = ii - 2
             dir    = 1
         CASE DEFAULT
             CALL errr(__FILE__, __LINE__)
@@ -148,7 +148,7 @@ CONTAINS
             j2 = jj - 1
             j3     = jj - 2
             j4 = jj - 3
-            jstag2 = jj - 1
+            jstag2 = jj - 2
             dir    = -1
         CASE DEFAULT
             CALL errr(__FILE__, __LINE__)
@@ -226,7 +226,7 @@ CONTAINS
             k2 = kk - 1
             k3 = kk - 2
             k4 = kk - 3
-            kstag2 = kk - 1
+            kstag2 = kk - 2
             dir    = -1
         CASE DEFAULT
             CALL errr(__FILE__, __LINE__)
