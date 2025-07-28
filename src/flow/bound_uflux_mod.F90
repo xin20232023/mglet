@@ -65,9 +65,9 @@ CONTAINS
             i2 = ii - 1
             i3     = ii - 2
             i4 = ii - 3
-            
+            istag1 = ii - 1
             istag2 = ii - 2
-            dir    = 1
+            dir    = -1
         CASE DEFAULT
             CALL errr(__FILE__, __LINE__)
         END SELECT
@@ -191,7 +191,7 @@ CONTAINS
     !   for z-direction faces.
     !   Similar logic as bfront/bright but for z-faces.
     ! --------------------------------------------------------------------
-    
+
     SUBROUTINE bbottom(igrid, iface, ibocd, ctyp, f1, f2, f3, f4, timeph)
         INTEGER(intk), INTENT(in) :: igrid, iface, ibocd
         CHARACTER(len=*), INTENT(in) :: ctyp
