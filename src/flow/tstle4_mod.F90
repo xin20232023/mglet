@@ -1,6 +1,8 @@
-﻿MODULE tstle4_mod
+MODULE tstle4_mod
     USE core_mod
     USE flowcore_mod
+    USE ib_mod, ONLY: parent
+    USE bound_uflux_mod
     USE lesmodel_mod, ONLY: ilesmodel
     USE wernerwengle_mod, ONLY: tauwin
 
@@ -10,11 +12,22 @@
     PUBLIC :: tstle4
 
 CONTAINS
-    SUBROUTINE tstle4(uo_f, vo_f, wo_f, u_f, v_f, w_f, ut_f, vt_f, wt_f, p_f, g_f)
-        ! Subroutine arguments
+    SUBROUTINE tstle4(uo_f, vo_f, wo_f, uo_x_f, uo_y_f, uo_z_f, &
+        vo_x_f, vo_y_f, vo_z_f, wo_x_f, wo_y_f, wo_z_f, &
+        u_f, v_f, w_f, ut_f, vt_f, wt_f, p_f, g_f)
+         ! Subroutine arguments
         TYPE(field_t), INTENT(inout) :: uo_f
         TYPE(field_t), INTENT(inout) :: vo_f
         TYPE(field_t), INTENT(inout) :: wo_f
+        TYPE(field_t), INTENT(inout) :: uo_x_f
+        TYPE(field_t), INTENT(inout) :: uo_y_f
+        TYPE(field_t), INTENT(inout) :: uo_z_f
+        TYPE(field_t), INTENT(inout) :: vo_x_f
+        TYPE(field_t), INTENT(inout) :: vo_y_f
+        TYPE(field_t), INTENT(inout) :: vo_z_f
+        TYPE(field_t), INTENT(inout) :: wo_x_f
+        TYPE(field_t), INTENT(inout) :: wo_y_f
+        TYPE(field_t), INTENT(inout) :: wo_z_f
         TYPE(field_t), INTENT(in) :: u_f
         TYPE(field_t), INTENT(in) :: v_f
         TYPE(field_t), INTENT(in) :: w_f
@@ -27,6 +40,7 @@ CONTAINS
         ! Local variables
         TYPE(field_t), POINTER :: dx_f, dy_f, dz_f, ddx_f, ddy_f, ddz_f
         TYPE(field_t), POINTER :: rdx_f, rdy_f, rdz_f, rddx_f, rddy_f, rddz_f
+        TYPE(field_t) :: bu_f
         REAL(realk), POINTER, CONTIGUOUS, DIMENSION(:, :, :) :: uo, vo, wo
         REAL(realk), POINTER, CONTIGUOUS, DIMENSION(:, :, :) :: u, v, w
         REAL(realk), POINTER, CONTIGUOUS, DIMENSION(:, :, :) :: ut, vt, wt
@@ -35,21 +49,22 @@ CONTAINS
         REAL(realk), POINTER, CONTIGUOUS :: ddx(:), ddy(:), ddz(:)
         REAL(realk), POINTER, CONTIGUOUS :: rdx(:), rdy(:), rdz(:)
         REAL(realk), POINTER, CONTIGUOUS :: rddx(:), rddy(:), rddz(:)
+        REAL(realk), POINTER, CONTIGUOUS :: uo_x(:,:,:), uo_y(:,:,:), uo_z(:,:,:)
+        REAL(realk), POINTER, CONTIGUOUS :: vo_x(:,:,:), vo_y(:,:,:), vo_z(:,:,:)
+        REAL(realk), POINTER, CONTIGUOUS :: wo_x(:,:,:), wo_y(:,:,:), wo_z(:,:,:)
         INTEGER(intk) :: i, igrid
         INTEGER(intk) :: kk, jj, ii
         INTEGER(intk) :: nfro, nbac, nrgt, nlft, nbot, ntop
-
-        ! Local variables
-        REAL(realk), ALLOCATABLE :: uo_x(:,:,:), uo_y(:,:,:), uo_z(:,:,:)
-        REAL(realk), ALLOCATABLE :: vo_x(:,:,:), vo_y(:,:,:), vo_z(:,:,:)
-        REAL(realk), ALLOCATABLE :: wo_x(:,:,:), wo_y(:,:,:), wo_z(:,:,:)
-        
+        INTEGER(intk) :: ilevel
+       
         CALL start_timer(310)
 
         ! Set all the output to zero everywhere before we start!
         uo_f = 0.0_realk
         vo_f = 0.0_realk
         wo_f = 0.0_realk
+
+        CALL bu_f%init("BU")
 
         CALL get_field(dx_f, "DX")
         CALL get_field(dy_f, "DY")
@@ -67,21 +82,17 @@ CONTAINS
         CALL get_field(rddy_f, "RDDY")
         CALL get_field(rddz_f, "RDDZ")
 
+        !CALL get_field(bu_f, "BU")
+
+
+        CALL uo_x_f%init_buffers()
+        CALL uo_y_f%init_buffers()
+        CALL uo_z_f%init_buffers()
+
         DO i = 1, nmygrids
             igrid = mygrids(i)
             
             CALL get_mgdims(kk, jj, ii, igrid)
-        
-            ! Allocate temporary arrays for flux components
-            ALLOCATE(uo_x(kk, jj, ii), uo_y(kk, jj, ii), uo_z(kk, jj, ii))
-            ALLOCATE(vo_x(kk, jj, ii), vo_y(kk, jj, ii), vo_z(kk, jj, ii))
-            ALLOCATE(wo_x(kk, jj, ii), wo_y(kk, jj, ii), wo_z(kk, jj, ii))
-            
-            ! Initialize arrays to zero
-            uo_x = 0.0_realk; uo_y = 0.0_realk; uo_z = 0.0_realk
-            vo_x = 0.0_realk; vo_y = 0.0_realk; vo_z = 0.0_realk
-            wo_x = 0.0_realk; wo_y = 0.0_realk; wo_z = 0.0_realk
-
             
             CALL get_mgbasb(nfro, nbac, nrgt, nlft, nbot, ntop, igrid)
 
@@ -92,6 +103,22 @@ CONTAINS
             CALL u_f%get_ptr(u, igrid)
             CALL v_f%get_ptr(v, igrid)
             CALL w_f%get_ptr(w, igrid)
+
+            CALL uo_x_f%get_ptr(uo_x, igrid)
+            CALL uo_y_f%get_ptr(uo_y, igrid)
+            CALL uo_z_f%get_ptr(uo_z, igrid)
+            CALL vo_x_f%get_ptr(vo_x, igrid)
+            CALL vo_y_f%get_ptr(vo_y, igrid)
+            CALL vo_z_f%get_ptr(vo_z, igrid)
+            CALL wo_x_f%get_ptr(wo_x, igrid)
+            CALL wo_y_f%get_ptr(wo_y, igrid)
+            CALL wo_z_f%get_ptr(wo_z, igrid)
+            
+            
+            ! Initialize arrays to zero
+            uo_x = 0.0_realk; uo_y = 0.0_realk; uo_z = 0.0_realk
+            vo_x = 0.0_realk; vo_y = 0.0_realk; vo_z = 0.0_realk
+            wo_x = 0.0_realk; wo_y = 0.0_realk; wo_z = 0.0_realk
 
             CALL ut_f%get_ptr(ut, igrid)
             CALL vt_f%get_ptr(vt, igrid)
@@ -116,11 +143,69 @@ CONTAINS
             CALL rddy_f%get_ptr(rddy, igrid)
             CALL rddz_f%get_ptr(rddz, igrid)
 
+
             CALL compute_flux(kk, jj, ii, u, v, w, ut, vt, wt, &
                     uo_x,uo_y,uo_z,vo_x,vo_y,vo_z,wo_x,wo_y,wo_z,&
                     dx, dy, dz, ddx, ddy, ddz, rdx, rdy, rdz, p, g,&
                     rddx, rddy, rddz, nfro, nbac, nrgt, nlft, nbot, ntop)
+            
+        END DO
 
+        DO ilevel = minlevel, maxlevel
+            CALL parent(ilevel, uo_x_f, uo_y_f, uo_z_f)
+            CALL bound_uflux%bound(ilevel, uo_x_f, uo_y_f, uo_z_f)
+        END DO
+
+
+        DO i = 1, nmygrids
+            igrid = mygrids(i)
+            
+            CALL get_mgdims(kk, jj, ii, igrid)
+            
+            CALL get_mgbasb(nfro, nbac, nrgt, nlft, nbot, ntop, igrid)
+
+            CALL uo_f%get_ptr(uo, igrid)
+            CALL vo_f%get_ptr(vo, igrid)
+            CALL wo_f%get_ptr(wo, igrid)
+
+            CALL u_f%get_ptr(u, igrid)
+            CALL v_f%get_ptr(v, igrid)
+            CALL w_f%get_ptr(w, igrid)
+
+            CALL uo_x_f%get_ptr(uo_x, igrid)
+            CALL uo_y_f%get_ptr(uo_y, igrid)
+            CALL uo_z_f%get_ptr(uo_z, igrid)
+            CALL vo_x_f%get_ptr(vo_x, igrid)
+            CALL vo_y_f%get_ptr(vo_y, igrid)
+            CALL vo_z_f%get_ptr(vo_z, igrid)
+            CALL wo_x_f%get_ptr(wo_x, igrid)
+            CALL wo_y_f%get_ptr(wo_y, igrid)
+            CALL wo_z_f%get_ptr(wo_z, igrid)
+            
+            CALL ut_f%get_ptr(ut, igrid)
+            CALL vt_f%get_ptr(vt, igrid)
+            CALL wt_f%get_ptr(wt, igrid)
+
+            CALL p_f%get_ptr(p, igrid)
+            CALL g_f%get_ptr(g, igrid)
+
+            CALL dx_f%get_ptr(dx, igrid)
+            CALL dy_f%get_ptr(dy, igrid)
+            CALL dz_f%get_ptr(dz, igrid)
+
+            CALL ddx_f%get_ptr(ddx, igrid)
+            CALL ddy_f%get_ptr(ddy, igrid)
+            CALL ddz_f%get_ptr(ddz, igrid)
+
+            CALL rdx_f%get_ptr(rdx, igrid)
+            CALL rdy_f%get_ptr(rdy, igrid)
+            CALL rdz_f%get_ptr(rdz, igrid)
+
+            CALL rddx_f%get_ptr(rddx, igrid)
+            CALL rddy_f%get_ptr(rddy, igrid)
+            CALL rddz_f%get_ptr(rddz, igrid)
+
+           
             CALL compute_balance(kk, jj, ii, u, v, w, uo,vo,wo,uo_x,uo_y,uo_z,vo_x,vo_y,vo_z,wo_x,wo_y,wo_z,&
                      ddx, ddy, ddz,rdx, rdy, rdz, rddx, rddy, rddz,&
                      nfro, nbac, nrgt, nlft, nbot, ntop,igrid)
@@ -129,32 +214,10 @@ CONTAINS
                     dx, dy, dz, ddx, ddy, ddz, rdx, rdy, rdz, rddx, rddy, rddz, &
                     nfro, nbac, nrgt, nlft, nbot, ntop)
             
-            
-            DEALLOCATE(uo_x, uo_y, uo_z)
-            DEALLOCATE(vo_x, vo_y, vo_z)
-            DEALLOCATE(wo_x, wo_y, wo_z)
         END DO
 
         CALL stop_timer(310)
     END SUBROUTINE tstle4
-
-
-    ! The convective terms are computed in two steps:
-    ! First, the mass fluxes (transporting velocities) are interpolated to
-    ! the faces of the momentum cell. This interpolation is performed in a
-    ! way which ensures mass conservation at the momentum cell if the
-    ! velocity field is divergence-free on the adjacent pressure cells.
-    ! Second, the transported velocities are interpolated in a symmetry-
-    ! preserving manner (the convective term has to be skew-symmetric in
-    ! order to conserve energy).
-    !
-    ! Details can be found in:
-    ! [1] Heinz Werner, Grobstruktursimulation der turbulenten Strömung
-    !     über eine querliegende Rippe in einem Plattenkanal bei hoher
-    !     Reynolds-Zahl, PhD Thesis, Technical University of Munich, 1991
-    ! [2] Verstappen et al., SYMMETRY-PRESERVING DISCRETIZATIONS OF THE
-    !     INCOMPRESSIBLE NAVIER-STOKES EQUATIONS, European Conference on
-    !     Computational Fluid Dynamics, ECCOMAS CFD 2006
 
     SUBROUTINE compute_flux(kk, jj, ii, u, v, w, ut, vt, wt, &
             uo_x,uo_y,uo_z,vo_x,vo_y,vo_z,wo_x,wo_y,wo_z,&
@@ -570,9 +633,6 @@ CONTAINS
                 END DO
             END DO
         END DO
-        
-        CALL swcle3d(kk, jj, ii, uo, vo, wo, u, v, w, &
-                ddx, ddy, ddz, nfro, nbac, nrgt, nlft, nbot, ntop)  
 
     END SUBROUTINE compute_balance
 
@@ -1800,46 +1860,32 @@ CONTAINS
         DEALLOCATE(wcw)
     END SUBROUTINE tstle4_par
 
-    SUBROUTINE swcle3d(kk, jj, ii, uo, vo, wo, u, v, w, ddx, ddy, ddz, &
+
+    SUBROUTINE swcle3d(kk, jj, ii, uo_x,uo_y,uo_z,vo_x,vo_y,vo_z,wo_x,wo_y,wo_z, u, v, w, dx, dy, dz, ddx, ddy, ddz, &
         nfro, nbac, nrgt, nlft, nbot, ntop)
 
         ! Subroutine arguments
         INTEGER(intk), INTENT(in) :: kk, jj, ii
-        REAL(realk), INTENT(inout) :: uo(kk, jj, ii), vo(kk, jj, ii), &
-            wo(kk, jj, ii)
+        REAL(realk), INTENT(inout) :: uo_x(kk, jj, ii),uo_y(kk, jj, ii),uo_z(kk, jj, ii)
+        REAL(realk), INTENT(inout) :: vo_x(kk, jj, ii),vo_y(kk, jj, ii),vo_z(kk, jj, ii)
+        REAL(realk), INTENT(inout) :: wo_x(kk, jj, ii),wo_y(kk, jj, ii),wo_z(kk, jj, ii)
         REAL(realk), INTENT(in) :: u(kk, jj, ii), v(kk, jj, ii), w(kk, jj, ii)
+        REAL(realk), INTENT(in) :: dx(ii), dy(jj), dz(kk)
         REAL(realk), INTENT(in) :: ddx(ii), ddy(jj), ddz(kk)
         INTEGER(intk), INTENT(in) :: nfro, nbac, nrgt, nlft, nbot, ntop
 
         ! Local variables
+        
         INTEGER(intk) :: k, j, i
+        REAL(realk) :: ax,ay,az
 
-        IF (nfro == 5) THEN
-            i = 3
-            DO j = 2, jj-1
-                DO k = 2, kk-1
-                    vo(k, j, i) = vo(k, j, i) - swcle3d_one(ddx(i), v(k, j, i))
-                    wo(k, j, i) = wo(k, j, i) - swcle3d_one(ddx(i), w(k, j, i))
-                END DO
-            END DO
-        END IF
-
-        IF (nbac == 5) THEN
-            i = ii-2
-            DO j = 2, jj-1
-                DO k = 2, kk-1
-                    vo(k, j, i) = vo(k, j, i) - swcle3d_one(ddx(i), v(k, j, i))
-                    wo(k, j, i) = wo(k, j, i) - swcle3d_one(ddx(i), w(k, j, i))
-                END DO
-            END DO
-        END IF
-
+        ! Updating uo (x-direction velocity)
         IF (nrgt == 5) THEN
             j = 3
             DO i = 2, ii-1
                 DO k = 2, kk-1
-                    uo(k, j, i) = uo(k, j, i) - swcle3d_one(ddy(j), u(k, j, i))
-                    wo(k, j, i) = wo(k, j, i) - swcle3d_one(ddy(j), w(k, j, i))
+                    ay = dx(i)*ddz(k)
+                    uo_y(k, j, i) = uo_y(k, j, i) - tauwin(u(k, j, i),ddy(j)) * ay / rho
                 END DO
             END DO
         END IF
@@ -1848,8 +1894,8 @@ CONTAINS
             j = jj-2
             DO i = 2, ii-1
                 DO k = 2, kk-1
-                    uo(k, j, i) = uo(k, j, i) - swcle3d_one(ddy(j), u(k, j, i))
-                    wo(k, j, i) = wo(k, j, i) - swcle3d_one(ddy(j), w(k, j, i))
+                    ay = dx(i)*ddz(k)
+                    uo_y(k, j, i) = uo_y(k, j, i) - tauwin(u(k, j, i),ddy(j)) * ay / rho
                 END DO
             END DO
         END IF
@@ -1858,8 +1904,8 @@ CONTAINS
             k = 3
             DO i = 2, ii-1
                 DO j = 2, jj-1
-                    uo(k, j, i) = uo(k, j, i) - swcle3d_one(ddz(k), u(k, j, i))
-                    vo(k, j, i) = vo(k, j, i) - swcle3d_one(ddz(k), v(k, j, i))
+                    az = dx(i)*ddy(j)
+                    uo_z(k, j, i) = uo_z(k, j, i) - tauwin(u(k, j, i),ddz(k)) * az / rho
                 END DO
             END DO
         END IF
@@ -1868,12 +1914,96 @@ CONTAINS
             k = kk-2
             DO i = 2, ii-1
                 DO j = 2, jj-1
-                    uo(k, j, i) = uo(k, j, i) - swcle3d_one(ddz(k), u(k, j, i))
-                    vo(k, j, i) = vo(k, j, i) - swcle3d_one(ddz(k), v(k, j, i))
+                    az = dx(i)*ddy(j)
+                    uo_z(k, j, i) = uo_z(k, j, i) - tauwin(u(k, j, i),ddz(k)) * az / rho
                 END DO
             END DO
         END IF
+
+        ! Updating vo 
+        IF (nfro == 5) THEN
+            i = 3
+            DO j = 2, jj-1
+                DO k = 2, kk-1
+                    ax = dy(j)*ddz(k)
+                    vo_x(k, j, i) = vo_x(k, j, i) - tauwin(v(k, j, i),ddx(i)) * ax / rho
+                END DO
+            END DO
+        END IF
+
+        IF (nbac == 5) THEN
+            i = ii-2
+            DO j = 2, jj-1
+                DO k = 2, kk-1
+                    ax = dy(j)*ddz(k)
+                    vo_x(k, j, i) = vo_x(k, j, i) - tauwin(v(k, j, i),ddx(i)) * ax / rho
+                END DO
+            END DO
+        END IF
+
+        IF (nbot == 5) THEN
+            k = 3
+            DO i = 2, ii-1
+                DO j = 2, jj-1
+                    az = ddx(i)*dy(j)
+                    vo_z(k, j, i) = vo_z(k, j, i) - tauwin(v(k, j, i),ddz(k)) * az / rho
+                END DO
+            END DO
+        END IF
+
+        IF (ntop == 5) THEN
+            k = kk-2
+            DO i = 2, ii-1
+                DO j = 2, jj-1
+                    az = ddx(i)*dy(j)
+                    vo_z(k, j, i) = vo_z(k, j, i) - tauwin(v(k, j, i),ddz(k)) * az / rho
+                END DO
+            END DO
+        END IF
+
+        ! Updating wo 
+        IF (nfro == 5) THEN
+            i = 3
+            DO j = 2, jj-1
+                DO k = 2, kk-1
+                    ax = ddy(j)*dz(k)
+                    wo_x(k, j, i) = wo_x(k, j, i) - tauwin(w(k, j, i),ddx(i)) * ax / rho
+                END DO
+            END DO
+        END IF
+
+        IF (nbac == 5) THEN
+            i = ii-2
+            DO j = 2, jj-1
+                DO k = 2, kk-1
+                    ax = ddy(j)*dz(k)
+                    wo_x(k, j, i) = wo_x(k, j, i) - tauwin(w(k, j, i),ddx(i)) * ax / rho
+                END DO
+            END DO
+        END IF
+
+        IF (nrgt == 5) THEN
+            j = 3
+            DO i = 2, ii-1
+                DO k = 2, kk-1
+                    ay = ddx(i)*dz(k)
+                    wo_y(k, j, i) = wo_y(k, j, i) - tauwin(w(k, j, i),ddy(j)) * ay / rho
+                END DO
+            END DO
+        END IF
+
+        IF (nlft == 5) THEN
+            j = jj-2
+            DO i = 2, ii-1
+                DO k = 2, kk-1
+                    ay = ddx(i)*dz(k)
+                    wo_y(k, j, i) = wo_y(k, j, i) - tauwin(w(k, j, i),ddy(j)) * ay / rho
+                END DO
+            END DO
+        END IF
+
     END SUBROUTINE swcle3d
+
 
 
     PURE ELEMENTAL REAL(realk) FUNCTION swcle3d_one(ddz, u) RESULT(uo)
@@ -1888,4 +2018,5 @@ CONTAINS
 
         uo = tauwin(u, ddz)/rho/ddz
     END FUNCTION swcle3d_one
+
 END MODULE tstle4_mod

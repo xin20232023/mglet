@@ -1,9 +1,12 @@
+message(STATUS "THIS IS THE FLOW CMakeLists.txt")
+set(CMAKE_Fortran_SOURCE_FILE_EXTENSIONS f90 F90 f F)
 add_library(flow STATIC
     bound_flow_mod.F90
     boussinesqterm_mod.F90
     coriolisterm_mod.F90
     flowcore_mod.F90
     flow_mod.F90
+    bound_uflux_mod.F90
     flowstat_mod.F90
     gc_compbodyforce_mod.F90
     gc_flowstencils_mod.F90
@@ -12,8 +15,8 @@ add_library(flow STATIC
     plog_mod.F90
     pressuresolver_mod.F90
     setboundarybuffers_mod.F90
-    timeintegration_mod.F90
     tstle4_mod.F90
+    timeintegration_mod.F90
     wernerwengle_mod.F90
 )
 
