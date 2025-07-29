@@ -60,23 +60,21 @@ CONTAINS
             i4 = 4 
             istag1 = 1 
             istag2 = 2 
-            dir = 1
         CASE (2)  ! back
             i2 = ii - 1
-            i3     = ii - 2
+            i3 = ii - 2
             i4 = ii - 3
             istag1 = ii - 1
             istag2 = ii - 2
-            dir    = -1
         CASE DEFAULT
             CALL errr(__FILE__, __LINE__)
         END SELECT
 
         ! Loop over the receiver cells at the interface
-        DO j = 3, jj-3, 2
-            DO k = 3, kk-2, 2
+        DO j = 3, jj-4, 2
+            DO k = 3, kk-3, 2
                 ! Read coarse-grid total flux from buffer, with orientation
-                qtot = dir*quo_x_buf(k, j, 1)
+                qtot = quo_x_buf(k, j, 2)
 
                 area1 = 0.5_realk * bp(k,   j,   i3)
                 area2 = 0.5_realk * bp(k+1, j,   i3)
@@ -142,22 +140,22 @@ CONTAINS
             j4 = 4 
             jstag1 = 1 
             jstag2 = 2 
-            dir = 1
+           
             
         CASE (4)  ! left
             j2 = jj - 1
             j3     = jj - 2
             j4 = jj - 3
             jstag2 = jj - 2
-            dir    = -1
+            
         CASE DEFAULT
             CALL errr(__FILE__, __LINE__)
         END SELECT
 
 
-        DO i = 3, ii-3, 2
-            DO k = 3, kk-2, 2
-                qtot = dir*quo_y_buf(k, i, 1)
+        DO i = 3, ii-4, 2
+            DO k = 3, kk-3, 2
+                qtot = quo_y_buf(k, i, 2)
 
                 area1 = 0.5_realk * bp(k,   j3, i  )
                 area2 = 0.5_realk * bp(k+1, j3, i  )
@@ -221,22 +219,22 @@ CONTAINS
             k4 = 4
             kstag1 = 1
             kstag2 = 2
-            dir    = 1
+          
         CASE (6)
             k2 = kk - 1
             k3 = kk - 2
             k4 = kk - 3
             kstag2 = kk - 2
-            dir    = -1
+            
         CASE DEFAULT
             CALL errr(__FILE__, __LINE__)
         END SELECT
 
 
-        DO i = 3, ii-3, 2
-            DO j = 3, jj-2, 2
+        DO i = 3, ii-4, 2
+            DO j = 3, jj-3, 2
 
-                qtot = dir*quo_z_buf(j, i, 1)
+                qtot = quo_z_buf(j, i, 2)
 
                 area1 = 0.5_realk * bp(k3, j,   i  )
                 area2 = 0.5_realk * bp(k3, j+1, i  )
